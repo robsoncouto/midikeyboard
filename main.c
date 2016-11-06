@@ -26,7 +26,7 @@
 
 
 // This descriptor is based on http://www.usb.org/developers/devclass_docs/midi10.pdf
-// 
+//
 // Appendix B. Example: Simple MIDI Adapter (Informative)
 // B.1 Device Descriptor
 //
@@ -63,16 +63,16 @@ static PROGMEM const char configDescrMIDI[] = {	/* USB configuration descriptor 
 	USB_CFG_MAX_BUS_POWER / 2,	/* max USB current in 2mA units */
 
 // B.3 AudioControl Interface Descriptors
-// The AudioControl interface describes the device structure (audio function topology) 
-// and is used to manipulate the Audio Controls. This device has no audio function 
-// incorporated. However, the AudioControl interface is mandatory and therefore both 
-// the standard AC interface descriptor and the classspecific AC interface descriptor 
-// must be present. The class-specific AC interface descriptor only contains the header 
+// The AudioControl interface describes the device structure (audio function topology)
+// and is used to manipulate the Audio Controls. This device has no audio function
+// incorporated. However, the AudioControl interface is mandatory and therefore both
+// the standard AC interface descriptor and the classspecific AC interface descriptor
+// must be present. The class-specific AC interface descriptor only contains the header
 // descriptor.
 
 // B.3.1 Standard AC Interface Descriptor
-// The AudioControl interface has no dedicated endpoints associated with it. It uses the 
-// default pipe (endpoint 0) for all communication purposes. Class-specific AudioControl 
+// The AudioControl interface has no dedicated endpoints associated with it. It uses the
+// default pipe (endpoint 0) for all communication purposes. Class-specific AudioControl
 // Requests are sent using the default pipe. There is no Status Interrupt endpoint provided.
 	/* AC interface descriptor follows inline: */
 	9,			/* sizeof(usbDescrInterface): length of descriptor in bytes */
@@ -86,10 +86,10 @@ static PROGMEM const char configDescrMIDI[] = {	/* USB configuration descriptor 
 	0,			/* string index for interface */
 
 // B.3.2 Class-specific AC Interface Descriptor
-// The Class-specific AC interface descriptor is always headed by a Header descriptor 
-// that contains general information about the AudioControl interface. It contains all 
-// the pointers needed to describe the Audio Interface Collection, associated with the 
-// described audio function. Only the Header descriptor is present in this device 
+// The Class-specific AC interface descriptor is always headed by a Header descriptor
+// that contains general information about the AudioControl interface. It contains all
+// the pointers needed to describe the Audio Interface Collection, associated with the
+// described audio function. Only the Header descriptor is present in this device
 // because it does not contain any audio functionality as such.
 	/* AC Class-Specific descriptor */
 	9,			/* sizeof(usbDescrCDC_HeaderFn): length of descriptor in bytes */
@@ -332,7 +332,7 @@ static void hardwareInit(void)
 	// enable, prescaler = 2^6 (-> 12Mhz / 64 = 187.5 kHz)
 	//ADCSRA = (1 << ADEN) | (1 << ADPS2) | (1 << ADPS1) | (0 << ADPS0);
 
-	PORTA = 0xff;   /* activate all pull-ups */
+	PORTA = 0x00;   /* activate all pull-ups */
 	DDRA = 0xFF;       /* all pins input */
 
 // keys/switches setup
@@ -361,7 +361,7 @@ int adc(uchar channel)
 
 
 /* Simple monophonic keyboard
-   The following function returns a midi note value for the first key pressed. 
+   The following function returns a midi note value for the first key pressed.
    Key 0 -> 60 (middle C),
    Key 1 -> 62 (D)
    Key 2 -> 64 (E)
@@ -372,27 +372,28 @@ int adc(uchar channel)
    Key 7 -> 72 (C)
  * returns 0 if no key is pressed.
  */
-static uchar keyPressed(void)
-{
-	uchar i, mask, x;
+// static uchar keyPressed(void)
+// {
+// 	uchar i, mask, x;
+//
+// 	x = PINB;
+// 	mask = 1;
+// 	for (i = 0; i <= 13; i += 2) {
+// 		if (6 == i)
+// 			i--;
+// 		if (13 == i)
+// 			i--;
+// 		if ((x & mask) == 0)
+// 			return i + 60;
+// 		mask <<= 1;
+// 	}
+// 	return 0;
+// }
 
-	x = PINB;
-	mask = 1;
-	for (i = 0; i <= 13; i += 2) {
-		if (6 == i)
-			i--;
-		if (13 == i)
-			i--;
-		if ((x & mask) == 0)
-			return i + 60;
-		mask <<= 1;
-	}
-	return 0;
-}
-
-void scanKeys(uint8_t* notes,uint8_t size){
+uint8_t scanKeys(uint8_t* notes,uint8_t size){
   uint8_t count=0;
   uint8_t key=48;
+
 	int i,j;
   PORTA=0x00;
   PORTC=0x00;
@@ -405,26 +406,31 @@ void scanKeys(uint8_t* notes,uint8_t size){
         notes[count]=key;
         count++;
         if (count==size) {
-          return;
+					PORTA=0x00;
+					return count;
         }
       }
       key--;
 
     }
   }
+	PORTA=0x00;
+	return count;
 }
 
 int main(void)
 {
-	int adcOld[8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
-	uchar key, lastKey = 0;
-	uchar keyDidChange = 0;
+	//int adcOld[8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
+	//uchar key, lastKey = 0;
+	//uchar keyDidChange = 0;
 	uchar midiMsg[8];
-	uchar channel = 0;
-	int value;
+	//uchar channel = 0;
+	//int value;
 	uchar iii;
 
 	uchar keys[10];
+	uchar lastKeys[10];
+
 
 	wdt_enable(WDTO_1S);
 	hardwareInit();
@@ -434,52 +440,71 @@ int main(void)
 	sendEmptyFrame = 0;
 
 	sei();
-	
+
 	// only ADC channel 6 and channel 7 are used
-	channel = 6;
+	// channel = 6;
+
+	uchar keyPressed=0,keyReleased=0;
 	for (;;) {		/* main event loop */
 		wdt_reset();
 		usbPoll();
-		scanKeys(keys,10);
-		if(keys[10]!=0){
-			key = keys[0]+23;//keyPressed(); 		
-		}
-		
-		if (lastKey != key)
-			keyDidChange = 1;
 
-		if (usbInterruptIsReady()) {
-			if (keyDidChange) {
-				// DEBUG LED
-				//PORTC ^= 0x40;
-				/* use last key and not current key status in order to avoid lost
-				   changes in key status. */
-				// up to two midi events in one midi msg.
-				// For description of USB MIDI msg see:
-				// http://www.usb.org/developers/devclass_docs/midi10.pdf
-				// 4. USB MIDI Event Packets
-				iii = 0;
-				if (lastKey) {	/* release */
-					midiMsg[iii++] = 0x08;
-					midiMsg[iii++] = 0x80;
-					midiMsg[iii++] = lastKey;
-					midiMsg[iii++] = 0x00;
+		int j,k,l,numbkeys;
+		//if(keys[10]!=0){
+		//	key = keys[0]+23;//keyPressed();
+		//}
+		numbkeys=scanKeys(keys,10);
+		for(j=0;j<10;j++){
+			keyPressed=1;
+			keyReleased=1;
+			for(k=0;k<10;k++){//can be reduced
+				if(lastKeys[j]==keys[k]){
+						keyReleased=0;
+					break;
 				}
-				if (key) {	/* press */
-					midiMsg[iii++] = 0x09;
-					midiMsg[iii++] = 0x90;
-					midiMsg[iii++] = key;
-					midiMsg[iii++] = 0x7f;
+			}
+			for(l=0;l<10;l++){
+				if(keys[j]==lastKeys[l]){
+						keyPressed=0;
+					break;
 				}
-				if (8 == iii)
-					sendEmptyFrame = 1;
-				else
-					sendEmptyFrame = 0;
-				usbSetInterrupt(midiMsg, iii);
-				keyDidChange = 0;
-				lastKey = key;
-			} 
-		}		// usbInterruptIsReady()
+			}
+			if (usbInterruptIsReady()) {
+				if (keyPressed|keyReleased) {
+					/* use last key and not current key status in order to avoid lost
+					   changes in key status. */
+					// up to two midi events in one midi msg.
+					// For description of USB MIDI msg see:
+					// http://www.usb.org/developers/devclass_docs/midi10.pdf
+					// 4. USB MIDI Event Packets
+					iii = 0;
+					if (keyReleased) {	/* release */
+						midiMsg[iii++] = 0x08;
+						midiMsg[iii++] = 0x80;
+						midiMsg[iii++] = lastKeys[j]+24;
+						midiMsg[iii++] = 0x00;
+					}
+					if (keyPressed) {	/* press */
+						midiMsg[iii++] = 0x09;
+						midiMsg[iii++] = 0x90;
+						midiMsg[iii++] = keys[j]+24;
+						midiMsg[iii++] = 0x7f;
+					}
+					if (8 == iii)
+						sendEmptyFrame = 1;
+					else
+						sendEmptyFrame = 0;
+					usbSetInterrupt(midiMsg, iii);
+				}
+			}
+
+		}
+		for(j=0;j<10;j++){
+			lastKeys[j]=keys[j];
+		}
+
+
+		// usbInterruptIsReady()
 	}
 	return 0;
 }
