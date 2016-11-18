@@ -1,11 +1,14 @@
 
 /* Name: main.c
- * Project: V-USB MIDI device on Low-Speed USB
- * Author: Martin Homuth-Rosemann
+ * Edited on 18 November 2016 by Robson Couto
+ * The code was adapted to make use of the keys of a dead casio keyboard
+ * Hosted at https://github.com/robsoncouto/midikeyboard
+ *
+ * Based on V-USB MIDI device on Low-Speed USB
+ * Original Author: Martin Homuth-Rosemann
  * Creation Date: 2008-03-11
  * Copyright: (c) 2008 by Martin Homuth-Rosemann.
  * License: GPL.
- *
  */
 
 #include <string.h>
@@ -224,9 +227,6 @@ uchar usbFunctionSetup(uchar data[8])
 {
 	usbRequest_t *rq = (void *) data;
 
-	// DEBUG LED
-	PORTC ^= 0x01;
-
 	if ((rq->bmRequestType & USBRQ_TYPE_MASK) == USBRQ_TYPE_CLASS) {	/* class request type */
 
 		/*  Prepare bulk-in endpoint to respond to early termination   */
@@ -245,16 +245,8 @@ uchar usbFunctionSetup(uchar data[8])
 
 uchar usbFunctionRead(uchar * data, uchar len)
 {
-	// DEBUG LED
-	PORTC ^= 0x02;
-
-	data[0] = 0;
-	data[1] = 0;
-	data[2] = 0;
-	data[3] = 0;
-	data[4] = 0;
-	data[5] = 0;
-	data[6] = 0;
+	// do nothing
+	// USB read not used for now
 
 	return 7;
 }
@@ -266,8 +258,6 @@ uchar usbFunctionRead(uchar * data, uchar len)
 
 uchar usbFunctionWrite(uchar * data, uchar len)
 {
-	// DEBUG LED
-	PORTC ^= 0x04;
 	return 1;
 }
 
@@ -281,8 +271,6 @@ uchar usbFunctionWrite(uchar * data, uchar len)
 
 void usbFunctionWriteOut(uchar * data, uchar len)
 {
-	// DEBUG LED
-	PORTC ^= 0x20;
 }
 
 
@@ -318,77 +306,18 @@ static void hardwareInit(void)
 	USBDDR = 0;		/*  remove USB reset condition */
 #endif
 
-// PORTA is used for up to eight potentiometer inputs.
-// ADC Setup
-	// prescaler 0  000 :   / 2
-	// prescaler 1  001 :   / 2
-	// prescaler 2  010 :   / 4
-	// prescaler 3  011 :   / 8
-	// prescaler 4  100 :   / 16
-	// prescaler 5  101 :   / 32
-	// prescaler 6  110 :   / 64
-	// prescaler 7  111 :   / 128
-	// adcclock : 50..200 kHz
-	// enable, prescaler = 2^6 (-> 12Mhz / 64 = 187.5 kHz)
-	//ADCSRA = (1 << ADEN) | (1 << ADPS2) | (1 << ADPS1) | (0 << ADPS0);
 
-	PORTA = 0x00;   /* activate all pull-ups */
-	DDRA = 0xFF;       /* all pins input */
+	PORTA = 0x00;
+	DDRA = 0xFF;       /* all pins output */
 
-// keys/switches setup
-// PORTB has eight keys (active low).
-	//PORTB = 0xff;		/* activate all pull-ups */
-	//DDRB = 0;		/* all pins input */
-// PORTC has eight (debug) LEDs (active low).
-	PORTC = 0x00;		/* all LEDs off */
-	DDRC = 0x00;		/* all pins output */
+	PORTC = 0x00;
+	DDRC = 0x00;		/* all pins input */
 }
 
-
-int adc(uchar channel)
-{
-	// single ended channel 0..7
-	ADMUX = channel & 0x07;
-	// AREF ext., adc right adjust result
-	ADMUX |= (0 << REFS1) | (0 << REFS0) | (0 << ADLAR);
-	// adc start conversion
-	ADCSRA |= (1 << ADSC);
-	while (ADCSRA & (1 << ADSC)) {
-		;		// idle
-	}
-	return ADC;
-}
-
-
-/* Simple monophonic keyboard
-   The following function returns a midi note value for the first key pressed.
-   Key 0 -> 60 (middle C),
-   Key 1 -> 62 (D)
-   Key 2 -> 64 (E)
-   Key 3 -> 65 (F)
-   Key 4 -> 67 (G)
-   Key 5 -> 69 (A)
-   Key 6 -> 71 (B)
-   Key 7 -> 72 (C)
- * returns 0 if no key is pressed.
- */
-// static uchar keyPressed(void)
-// {
-// 	uchar i, mask, x;
-//
-// 	x = PINB;
-// 	mask = 1;
-// 	for (i = 0; i <= 13; i += 2) {
-// 		if (6 == i)
-// 			i--;
-// 		if (13 == i)
-// 			i--;
-// 		if ((x & mask) == 0)
-// 			return i + 60;
-// 		mask <<= 1;
-// 	}
-// 	return 0;
-// }
+/*---------------------------------------------------------------------------*/
+/* scanKeys()                                                                */
+/* Reads keys status and put the key pressed in a buffer                     */
+/*---------------------------------------------------------------------------*/
 
 uint8_t scanKeys(uint8_t* notes,uint8_t size){
   uint8_t count=0;
@@ -420,12 +349,8 @@ uint8_t scanKeys(uint8_t* notes,uint8_t size){
 
 int main(void)
 {
-	//int adcOld[8] = { -1, -1, -1, -1, -1, -1, -1, -1 };
-	//uchar key, lastKey = 0;
-	//uchar keyDidChange = 0;
+
 	uchar midiMsg[8];
-	//uchar channel = 0;
-	//int value;
 	uchar iii;
 
 	uchar keys[10];
@@ -441,8 +366,6 @@ int main(void)
 
 	sei();
 
-	// only ADC channel 6 and channel 7 are used
-	// channel = 6;
 
 	uchar keyPressed=0,keyReleased=0;
 	for (;;) {		/* main event loop */
@@ -450,9 +373,7 @@ int main(void)
 		usbPoll();
 
 		int j,k,l,numbkeys;
-		//if(keys[10]!=0){
-		//	key = keys[0]+23;//keyPressed();
-		//}
+
 		numbkeys=scanKeys(keys,10);
 		for(j=0;j<10;j++){
 			keyPressed=1;
@@ -481,13 +402,13 @@ int main(void)
 					if (keyReleased) {	/* release */
 						midiMsg[iii++] = 0x08;
 						midiMsg[iii++] = 0x80;
-						midiMsg[iii++] = lastKeys[j]+24;
+						midiMsg[iii++] = lastKeys[j]+11;
 						midiMsg[iii++] = 0x00;
 					}
 					if (keyPressed) {	/* press */
 						midiMsg[iii++] = 0x09;
 						midiMsg[iii++] = 0x90;
-						midiMsg[iii++] = keys[j]+24;
+						midiMsg[iii++] = keys[j]+11	;
 						midiMsg[iii++] = 0x7f;
 					}
 					if (8 == iii)
@@ -503,8 +424,6 @@ int main(void)
 			lastKeys[j]=keys[j];
 		}
 
-
-		// usbInterruptIsReady()
 	}
 	return 0;
 }
