@@ -307,8 +307,13 @@ static void hardwareInit(void)
 #endif
 
 
+
 	PORTA = 0x00;
 	DDRA = 0xFF;       /* all pins output */
+
+	PORTA = 0x00;
+	DDRA = 0x03;       /* PB0 and PB1 output*/
+
 
 	PORTC = 0x00;
 	DDRC = 0x00;		/* all pins input */
