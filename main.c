@@ -306,17 +306,22 @@ static void hardwareInit(void)
 	USBDDR = 0;		/*  remove USB reset condition */
 #endif
 
+	/*
+	Green(3),orange(3) and blue(2) - input
+	purple(3), yellow(3), brown(3) and Red(1) -output
+	*/
 
-
+	//output P0,P1,P2,Y3,Y4,Y5,BR6,BR7
 	PORTA = 0x00;
 	DDRA = 0xFF;       /* all pins output */
 
-	PORTA = 0x00;
-	DDRA = 0x03;       /* PB0 and PB1 output*/
+	//output BR0,R1
+	PORTB = 0x00;
+	DDRB = 0x03;       /* PB0 and PB1 output*/
 
-
+	//input G0,G1,G2,O3,O4,O5,B6,B7
 	PORTC = 0x00;
-	DDRC = 0x00;		/* all pins input */
+	DDRC = 0x00;		/* all pins input  PC0 and PC1 are control inputs, all the others are note inputs*/
 }
 
 /*---------------------------------------------------------------------------*/
@@ -326,16 +331,17 @@ static void hardwareInit(void)
 
 uint8_t scanKeys(uint8_t* notes,uint8_t size){
   uint8_t count=0;
-  uint8_t key=48;
+  uint8_t key=0;
 
 	int i,j;
   PORTA=0x00;
+	PORTB=0x00;
   PORTC=0x00;
   memset(notes,0,size);
   for(i=0;i<8;i++){
     PORTA=(1<<i);
-    _delay_ms(1);
-    for(j=5;j>=0;j--){
+    _delay_ms(1);//without this it would glitch
+    for(j=0;j<8;j++){
       if(PINC&(1<<j)){
         notes[count]=key;
         count++;
@@ -345,12 +351,56 @@ uint8_t scanKeys(uint8_t* notes,uint8_t size){
         }
       }
       key--;
-
     }
   }
+
+	for(i=0;i<3;i++){
+    PORTB=(1<<i);
+    _delay_ms(1);//without this it would glitch
+    for(j=0;j<8;j++){
+      if(PINC&(1<<j)){
+        notes[count]=key;
+        count++;
+        if (count==size) {
+					PORTB=0x00;
+					return count;
+        }
+      }
+      key--;
+    }
+  }
+
 	PORTA=0x00;
+	PORTB=0x00;
 	return count;
 }
+
+// uint8_t readControl(uint8_t* keys,uint8_t size){
+//   uint8_t count=0;
+//   uint8_t key=0;
+// 	int i,j;
+//   PORTA=0x00;
+//   PORTC=0x00;
+//   memset(notes,0,size);
+//   for(i=0;i<8;i++){
+//     PORTA=(1<<i);
+//     _delay_ms(1);
+//     for(j=6;j<=7;j++){
+//       if(PINC&(1<<j)){
+//         keys[count]=key;
+//         count++;
+//         if (count==size) {
+// 					PORTA=0x00;
+// 					return count;
+//         }
+//       }
+//       key++;
+//
+//     }
+//   }
+// 	PORTA=0x00;
+// 	return count;
+// }
 
 int main(void)
 {
