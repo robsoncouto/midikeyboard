@@ -320,7 +320,6 @@ static void hardwareInit(void)
 	DDRB = 0x03;       /* PB0 and PB1 output*/
 
 	//input G0,G1,G2,O3,O4,O5,B6,B7
-	PORTC = 0x00;
 	DDRC = 0x00;		/* all pins input  PC0 and PC1 are control inputs, all the others are note inputs*/
 }
 
@@ -331,17 +330,17 @@ static void hardwareInit(void)
 
 uint8_t scanKeys(uint8_t* notes,uint8_t size){
   uint8_t count=0;
-  uint8_t key=0;
+  uint8_t key=1;
 
 	int i,j;
   PORTA=0x00;
-	PORTB=0x00;
-  PORTC=0x00;
+	//PORTB=0x00;
+  //PORTC=0x00;
   memset(notes,0,size);
   for(i=0;i<8;i++){
     PORTA=(1<<i);
     _delay_ms(1);//without this it would glitch
-    for(j=0;j<8;j++){
+    for(j=2;j<8;j++){
       if(PINC&(1<<j)){
         notes[count]=key;
         count++;
@@ -350,28 +349,28 @@ uint8_t scanKeys(uint8_t* notes,uint8_t size){
 					return count;
         }
       }
-      key--;
+      key++;
     }
   }
-
-	for(i=0;i<3;i++){
-    PORTB=(1<<i);
-    _delay_ms(1);//without this it would glitch
-    for(j=0;j<8;j++){
-      if(PINC&(1<<j)){
-        notes[count]=key;
-        count++;
-        if (count==size) {
-					PORTB=0x00;
-					return count;
-        }
-      }
-      key--;
-    }
-  }
+	//
+	// for(i=0;i<3;i++){
+  //   PORTB=(1<<i);
+  //   _delay_ms(1);//without this it would glitch
+  //   for(j=0;j<8;j++){
+  //     if(PINC&(1<<j)){
+  //       notes[count]=key;
+  //       count++;
+  //       if (count==size) {
+	// 				PORTB=0x00;
+	// 				return count;
+  //       }
+  //     }
+  //     key--;
+  //   }
+  // }
 
 	PORTA=0x00;
-	PORTB=0x00;
+	//PORTB=0x00;
 	return count;
 }
 
@@ -427,9 +426,9 @@ int main(void)
 		wdt_reset();
 		usbPoll();
 
-		int j,k,l,numbkeys;
+		int j,k,l;
 
-		numbkeys=scanKeys(keys,10);
+		scanKeys(keys,10);
 		for(j=0;j<10;j++){
 			keyPressed=1;
 			keyReleased=1;
@@ -457,13 +456,13 @@ int main(void)
 					if (keyReleased) {	/* release */
 						midiMsg[iii++] = 0x08;
 						midiMsg[iii++] = 0x80;
-						midiMsg[iii++] = lastKeys[j]+11;
+						midiMsg[iii++] = lastKeys[j]+23;
 						midiMsg[iii++] = 0x00;
 					}
 					if (keyPressed) {	/* press */
 						midiMsg[iii++] = 0x09;
 						midiMsg[iii++] = 0x90;
-						midiMsg[iii++] = keys[j]+11	;
+						midiMsg[iii++] = keys[j]+23;
 						midiMsg[iii++] = 0x7f;
 					}
 					if (8 == iii)
