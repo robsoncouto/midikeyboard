@@ -108,7 +108,7 @@ help:
 
 hex: main.hex
 
-program: flash fuse
+program: flash
 
 # rule for programming fuse bits:
 fuse:
