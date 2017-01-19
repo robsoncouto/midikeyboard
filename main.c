@@ -374,32 +374,32 @@ uint8_t scanKeys(uint8_t* notes,uint8_t size){
 	return count;
 }
 
-// uint8_t readControl(uint8_t* keys,uint8_t size){
-//   uint8_t count=0;
-//   uint8_t key=0;
-// 	int i,j;
-//   PORTA=0x00;
-//   PORTC=0x00;
-//   memset(notes,0,size);
-//   for(i=0;i<8;i++){
-//     PORTA=(1<<i);
-//     _delay_ms(1);
-//     for(j=6;j<=7;j++){
-//       if(PINC&(1<<j)){
-//         keys[count]=key;
-//         count++;
-//         if (count==size) {
-// 					PORTA=0x00;
-// 					return count;
-//         }
-//       }
-//       key++;
-//
-//     }
-//   }
-// 	PORTA=0x00;
-// 	return count;
-// }
+uint8_t readControl(uint8_t* keys,uint8_t size){
+  uint8_t count=0;
+  uint8_t key=0;
+	int i,j;
+  PORTA=0x00;
+  PORTC=0x00;
+  memset(keys,0,size);
+  for(i=0;i<8;i++){
+    PORTA=(1<<i);
+    _delay_ms(1);
+    for(j=0;j<=2;j++){
+      if(PINC&(1<<j)){
+        keys[count]=key;
+        count++;
+        if (count==size) {
+					PORTA=0x00;
+					return count;
+        }
+      }
+      key++;
+
+    }
+  }
+	PORTA=0x00;
+	return count;
+}
 
 int main(void)
 {
@@ -409,6 +409,8 @@ int main(void)
 
 	uchar keys[10];
 	uchar lastKeys[10];
+	memset (keys,0,10);
+	memset (lastKeys,0,10);
 
 
 	wdt_enable(WDTO_1S);
@@ -427,8 +429,8 @@ int main(void)
 		usbPoll();
 
 		int j,k,l;
-
 		scanKeys(keys,10);
+
 		for(j=0;j<10;j++){
 			keyPressed=1;
 			keyReleased=1;
@@ -444,6 +446,7 @@ int main(void)
 					break;
 				}
 			}
+			while(!usbInterruptIsReady());
 			if (usbInterruptIsReady()) {
 				if (keyPressed|keyReleased) {
 					/* use last key and not current key status in order to avoid lost
@@ -456,13 +459,13 @@ int main(void)
 					if (keyReleased) {	/* release */
 						midiMsg[iii++] = 0x08;
 						midiMsg[iii++] = 0x80;
-						midiMsg[iii++] = lastKeys[j]+23;
+						midiMsg[iii++] = lastKeys[j]+35;
 						midiMsg[iii++] = 0x00;
 					}
 					if (keyPressed) {	/* press */
 						midiMsg[iii++] = 0x09;
 						midiMsg[iii++] = 0x90;
-						midiMsg[iii++] = keys[j]+23;
+						midiMsg[iii++] = keys[j]+35;
 						midiMsg[iii++] = 0x7f;
 					}
 					if (8 == iii)
